@@ -45,11 +45,30 @@ There are two servers you will use during the hackathon:
 2. **Monomer Automation MCP** - this MCP is what you will use to interact with the automated workcell.
 
 ## Step 1: Onboarding to Monomer Bio
-If you haven't already been onboarded to Monomer, we will need your email. Monomer staff will stop by after Phase 1 to collect your information and get you set up.
+If you haven't already been onboarded to the Monomer culture monitor, we will need your email. Monomer staff will stop by after Phase 1 to collect your information and get you set up. You will receive an email invitation to the Monomer Culture Monitor, accept the invite and then navigate to the [settings page](https://cloud-staging.monomerbio.com/settings). From here, you will need to click the **Show Token** button to obtain the MCP token needed for the next step.
+
+<img width="601" height="223" alt="image" src="https://github.com/user-attachments/assets/fa7ac205-624b-42e6-94dd-fb62bd90c66b" />
 
 ## Step 2: Connect to the MCP
 
-### Option A: Claude Code / Claude API
+NOTE(Turner): Outside of the hackathon we should use https://desktop-nrh3hvl.tapir-decibel.ts.net/mcp for remote/testing.
+
+### Option A: Cursor
+
+1. Download [Cursor](https://cursor.com/download)
+2. Open Settings → MCP
+3. Add server: `http://192.168.68.55:8080/mcp` (no auth needed on local network)
+4. For Monitor MCP (read-only cloud data), add: `https://backend-staging.monomerbio.com/mcp` with `Authorization: Bearer <YOUR_TOKEN>`
+
+### Option B: Claude Code (requires subscription)
+
+1. Set up Claude Code using the instructions from their [Get Started page](https://code.claude.com/docs/en/overview#get-started).
+2. In your terminal, run the following command to set up the **monomer cloud** MCP:
+`claude mcp add --transport http monomer-cloud https://backend-staging.monomerbio.com/mcp --header "Authorization: Bearer <YOUR_TOKEN>"`
+3. In your terminal, run the following command to set up the **monomer automation platform** MCP:
+`claude mcp add --transport http monomer-autoplat http://192.168.68.55:8080/mcp --header "Authorization: Bearer <YOUR_TOKEN>"`
+
+### Option C: Claude API
 
 Add this to your Claude MCP config (`~/.claude.json`):
 
@@ -74,15 +93,7 @@ Add this to your Claude MCP config (`~/.claude.json`):
 }
 ```
 
-### Option B: Cursor
-
-1. Download [Cursor](https://cursor.com/download)
-2. Open Settings → MCP
-3. Add server: `http://192.168.68.55:8080/mcp` (no auth needed on local network)
-4. For Monitor MCP (read-only cloud data), add: `https://backend-staging.monomerbio.com/mcp` with `Authorization: Bearer YOUR_TOKEN`
-
-
-### Option C: Any MCP-compatible tool
+### Option D: Any MCP-compatible tool
 
 The workcell speaks standard MCP (JSON-RPC 2.0 over HTTP POST). See `CLAUDE.md` for the full tool list and MCP Resources (DSL guides, schema references, and a working example workflow your AI can read directly).
 
