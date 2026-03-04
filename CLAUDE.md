@@ -2,43 +2,6 @@
 
 This file gives AI coding assistants (Claude Code, Cursor, etc.) the technical context needed to help a contestant build a Track 2A closed-loop agent on the Monomer workcell.
 
-**Quick start:** Copy `track-2a-closed-loop/examples/starter_agent.py` and fill in the two
-`CUSTOMIZE` sections — your stock plate layout and your optimization strategy.
-See `track-2a-closed-loop/REAGENT_PLATE.md` to design your plate and get it loaded.
-
----
-
-## Media Composition
-
-Each experimental well is **180 µL** total:
-
-| Component | Role | Range |
-|-----------|------|-------|
-| Novel Bio (base media) | Required base | 90–180 µL (min 90 µL) |
-| Glucose | Carbon supplement | 0–90 µL |
-| NaCl | Osmolarity | 0–90 µL |
-| MgSO4 | Cofactor supplement | 0–90 µL |
-
-- All volumes are integers (µL resolution)
-- Sum must equal exactly 180 µL
-- `apply_constraints()` in `monomer/transfers.py` enforces these rules
-
-### Reagent Well Map (reagent plate)
-```
-A1      = Glucose stock
-B1      = NaCl stock
-C1      = MgSO4 stock
-D1      = Novel Bio (base media) — 1 tip reused across all transfers from this well
-A2      = NM+Cells (pre-mixed Novel Media + cells, for next-round warm seed well)
-A12–H12 = single-use seed aliquots, one row per iteration (pre-aliquoted at plate prep)
-```
-
-> **Pre-loaded by Monomer team** — the reagent plate (including NM+Cells in A2 and seed aliquots in col 12) is prepared and loaded before the experiment starts. Your agent does not need to manage plate loading.
-
-> **Seed wells (col 1 of experiment plate)** — A1–H1 are used as warm seed wells, one per iteration. The workflow pre-warms each one by transferring NM+Cells from the reagent plate during the previous iteration. Iteration 1 uses A1 (pre-seeded by Monomer), and each subsequent iteration uses the next row.
-
----
-
 ## Platform Primitives
 
 ### Hierarchy
@@ -53,18 +16,12 @@ CulturePlate        →  tracked plate with barcode, history of readings
 
 | Routine Name | Purpose | Key Parameters |
 |---|---|---|
-| **hackathon_transfer_samples** | General-purpose liquid handling across reagent / experiment / cell_culture_stock plates | `reagent_name`, `experiment_plate_barcode`, `cell_culture_stock_plate_barcode`, `transfer_array` |
+| **Hackathon Transfer Samples** | General-purpose liquid handling across reagent / experiment / cell_culture_stock plates | `reagent_name`, `experiment_plate_barcode`, `cell_culture_stock_plate_barcode`, `transfer_array` |
 | **Measure Absorbance** | Read OD600 from a set of wells | `culture_plate_barcode`, `method_name` (`96wp_od600`), `wells_to_process` |
 
 > **`reagent_name` is a restricted field** — it must match the tag registered on the workcell for your stock plate. Coordinate with the Monomer team when you hand off your plate layout to get the correct string.
 
 These routines are wired up inside `workflow_definition_template.py`. Don't call them directly — use `instantiate_workflow()` which handles upload and scheduling.
-
-### Plate Barcode Convention
-```
-{PREFIX}-R{ROUND}-{YYYYMMDD}
-e.g. GD-R1-20260314
-```
 
 ---
 
@@ -190,87 +147,6 @@ resp = requests.post(
 ```
 
 ---
-
-## Python Library (`monomer/`)
-
-### `McpClient` — low-level tool calls
-```python
-from monomer.mcp_client import McpClient
-
-client = McpClient("http://192.168.68.55:8080")
-
-plates = client.call_tool("list_culture_plates", {})
-routines = client.call_tool("list_available_routines", {})
-definitions = client.call_tool("list_workflow_definitions", {})
-```
-
-Use the higher-level helpers in `workflows.py` for registering and running workflows — they handle file upload, ID lookup, input merging, and polling.
-
-### `workflows.py` — register, launch, poll
-```python
-from monomer.workflows import register_workflow, instantiate_workflow, poll_workflow_completion
-import json
-
-# Register the workflow template ONCE per session
-def_id = register_workflow(client, Path("examples/workflow_definition_template.py"), name="My GD Agent")
-
-# Each iteration: instantiate with your agent's outputs as extra_inputs
-uuid = instantiate_workflow(
-    client,
-    definition_id=def_id,
-    plate_barcode="GD-R1-20260314",
-    extra_inputs={
-        "transfer_array":   json.dumps(transfers),      # list of dicts — see REAGENT_PLATE.md
-        "monitoring_wells": json.dumps(all_wells),      # cumulative — grows each round
-        "reagent_name":     "Team Alpha Stock Plate",   # tag from Monomer team
-        "cell_culture_stock_plate_barcode": "CELLS-20260314",
-    },
-    reason="Iteration 1: testing Glucose=20µL",
-)
-result = poll_workflow_completion(client, uuid, timeout_minutes=180)
-```
-
-### `datasets.py` — fetch OD600 results
-```python
-from monomer.datasets import fetch_absorbance_results
-
-# column_index = iteration + 1 (col 1 = seed wells; experiments start at col 2)
-raw = fetch_absorbance_results(client, plate_barcode="TEAM-R1-20260314", column_index=2)
-# raw = {"baseline": {"A2": 0.05, ...}, "endpoint": {"A2": 1.2, ...}}
-
-# Compute delta OD (growth) for any set of wells — works with any plate layout
-dest_wells = ["A2", "B2", "C2", "D2", "E2", "F2", "G2", "H2"]
-od = {
-    well: raw["endpoint"].get(well, 0.0) - raw["baseline"].get(well, 0.0)
-    for well in dest_wells
-}
-# od = {"A2": 0.41, "B2": 0.63, ...}
-
-# If you're running the default gradient descent layout, parse_od_results()
-# extracts control/center/perturbation structure automatically:
-#   from monomer.datasets import parse_od_results
-#   parsed = parse_od_results(raw, column_index=2)
-```
-
-### `transfers.py` — helpers for the default gradient descent layout
-```python
-# These helpers implement gradient descent with Glucose/NaCl/MgSO4.
-# You can ignore them if you're using a custom reagent plate and strategy.
-from monomer.transfers import generate_transfer_array, apply_constraints, ROWS
-
-center = {"Glucose": 20, "NaCl": 10, "MgSO4": 5}  # µL
-center = apply_constraints(center)  # clamp to valid ranges
-
-# column_index = iteration + 1 (experiments start at col 2, col 1 = seed wells)
-transfers = generate_transfer_array(center, column_index=2, delta=10)
-# transfers = [["D1", "A2", 180], ["D1", "B2", 145], ["A1", "B2", 20], ...]
-
-iteration = 1
-column_index   = iteration + 1
-dest_wells     = [f"{r}{column_index}" for r in ROWS]                    # ["A2".."H2"]
-seed_well      = f"{ROWS[iteration - 1]}1"                               # "A1"
-next_seed_well = f"{ROWS[iteration]}1" if iteration < len(ROWS) else ""  # "B1"
-```
 
 ### Transfer array format (all strategies)
 
