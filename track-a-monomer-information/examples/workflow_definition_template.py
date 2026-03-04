@@ -193,7 +193,7 @@ def build_definition(
     # of reagent → experiment, cell_culture_stock → experiment, or intra-plate
     # transfers. Only plates referenced in the array will be unlid.
     liquid_handling = RoutineReference(
-        routine_name="hackathon_transfer_samples",
+        routine_name="Hackathon Transfer Samples",
         routine_parameters={
             "reagent_name":                      reagent_name,
             "experiment_plate_barcode":          plate_barcode,
