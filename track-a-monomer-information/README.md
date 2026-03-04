@@ -102,30 +102,6 @@ Use the prompt "build a workflow to transfer different volumes of Novel Media fr
 ### Analyze: Ask Monomer Cloud for data and poll it to build a graph of Delta OD600 in Streamlit that continuously updates
 We are trying to optimize for the biggest change in growth for a given media, not just Max OD600, so it behooves us to capture this delta. Once your plate has finished the liquid handling step, 
 
-Stopping point for carter
-
-## Workflow Definition Format
-
-A workflow definition is a Python file with a `build_definition()` function. The function accepts typed parameters — your agent passes them at instantiation time, so you only ever upload the file once.
-
-```python
-def build_definition(
-    plate_barcode: str,           # always required
-    transfer_array: str = "[]",   # your reagent transfers this iteration
-    dest_wells: str = "...",      # wells being filled
-    monitoring_wells: str = "...",# cumulative — all wells measured so far
-    seed_well: str = "A1",        # advances A1 → B1 → C1 ... each round
-    next_seed_well: str = "B1",   # pre-warms the next seed well
-    reagent_type: str = "...",    # identifies your stock plate
-    monitoring_readings: int = 9, # 9 × 10 min = 90 min window
-    ...
-) -> WorkflowDefinitionDescriptor:
-    # builds the routine sequence and returns it
-```
-
-The template validates your inputs (transfer count, well conflicts, volumes) before the workflow reaches the approval queue. See `examples/workflow_definition_template.py` for the full implementation and parameter docs.
-
----
 
 ## Workcell Constraints
 
