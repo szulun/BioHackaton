@@ -64,9 +64,16 @@ NOTE(Turner): Outside of the hackathon we should use https://desktop-nrh3hvl.tap
 
 1. Set up Claude Code using the instructions from their [Get Started page](https://code.claude.com/docs/en/overview#get-started).
 2. In your terminal, run the following command to set up the **monomer cloud** MCP:
-```claude mcp add --transport http monomer-cloud https://backend-staging.monomerbio.com/mcp --header "Authorization: Bearer <YOUR_TOKEN>"```
+
+```
+claude mcp add --scope user --transport http monomer-cloud https://backend-staging.monomerbio.com/mcp --header "Authorization: Bearer <YOUR_TOKEN>"
+```
+
 3. In your terminal, run the following command to set up the **monomer automation platform** MCP:
-```claude mcp add --transport http monomer-autoplat http://192.168.68.55:8080/mcp```
+
+```
+claude mcp add --scope user --transport http monomer-autoplat http://192.168.68.55:8080/mcp
+```
 
 ### Option C: Claude API
 
